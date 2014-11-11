@@ -127,10 +127,15 @@ package { 'nodejs':
 
 # --- Ruby ---------------------------------------------------------------------
 
+exec { 'install_mpapis':
+  command => "${as_ubuntu} 'gpg --keyserver hkp://keys.gnupg.net --recv-keys D39DC0E3'",
+  require => Package['curl']
+}
+
 exec { 'install_rvm':
   command => "${as_ubuntu} 'curl -L https://get.rvm.io | bash -s stable'",
   creates => "${home}/.rvm/bin/rvm",
-  require => Package['curl']
+  require => Exec['install_mpapis']
 }
 
 exec { 'install_ruby':
@@ -168,15 +173,22 @@ exec { 'bundle_install':
 }
 
 # Run migrations
-exec { 'rake_migrate':
-  command => "${as_ubuntu} 'rake db:reset'",
+exec { 'rake_db_create':
+  command => "${as_ubuntu} 'rake db:create'",
   cwd     => '/myapp',
   require => Exec['bundle_install']
 }
 
+# Run migrations
+exec { 'rake_migrate':
+  command => "${as_ubuntu} 'rake db:migrate'",
+  cwd     => '/myapp',
+  require => Exec['rake_db_create']
+}
+
 # Starts the server
 exec { 'rails_server':
-  command => "${as_ubuntu} 'rvmsudo rails server -p 80 &'",
+  command => "${as_ubuntu} 'rvmsudo rails server -d -p 80'",
   cwd     => '/myapp',
   require => Exec['rake_migrate']
 }
